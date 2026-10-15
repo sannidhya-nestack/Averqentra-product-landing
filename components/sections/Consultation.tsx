@@ -156,14 +156,11 @@ export default function Consultation() {
     setSelectedTime(null);
   };
 
-  // Group slots by day of current month (strictly excluding weekends)
+  // Group slots by day of current month; the availability API decides which days are open
   const slotsByDay = useMemo(() => {
     const map = new Map<number, Slot[]>();
     for (const s of slots) {
       const parsed = parseInTz(s.startTime, userTz);
-      // Exclude any weekend slot
-      const dow = new Date(parsed.y, parsed.m, parsed.d).getDay();
-      if (dow === 0 || dow === 6) continue;
 
       if (parsed.y === currentDate.getFullYear() && parsed.m === currentDate.getMonth()) {
         if (!map.has(parsed.d)) map.set(parsed.d, []);
@@ -196,13 +193,9 @@ export default function Consultation() {
     return days;
   }, [currentDate]);
 
-  // Handle Step 1 -> Step 2 (Strict weekend guard)
+  // Handle Step 1 -> Step 2
   const handleDateConfirm = () => {
     if (!selectedDay || !selectedTime) return;
-    const dateObj = new Date(year, currentDate.getMonth(), selectedDay);
-    const dayOfWeek = dateObj.getDay();
-    // Sunday is 0, Saturday is 6
-    if (dayOfWeek === 0 || dayOfWeek === 6) return;
     setStep(2);
   };
 
@@ -407,15 +400,15 @@ export default function Consultation() {
                     </div>
                   </div>
 
-                  {/* Weekday headers - SAT and SUN muted to indicate weekends */}
+                  {/* Weekday headers */}
                   <div className="mt-6 sm:mt-7 grid grid-cols-7 gap-1 sm:gap-2 text-center font-mono text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-[#9ca3af]">
                     <div>MON</div>
                     <div>TUE</div>
                     <div>WED</div>
                     <div>THU</div>
                     <div>FRI</div>
-                    <div className="text-[#cbd5e1]">SAT</div>
-                    <div className="text-[#cbd5e1]">SUN</div>
+                    <div>SAT</div>
+                    <div>SUN</div>
                   </div>
 
                   {/* Calendar Grid */}
@@ -431,17 +424,14 @@ export default function Consultation() {
                         }
 
                         const dateObj = new Date(year, currentDate.getMonth(), day);
-                        const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 6 = Saturday
-                        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
                         const isPast = dateObj < today;
 
-                        // In the real calendar API, Saturdays and Sundays have 0 slots.
-                        // We strictly disable weekends under all conditions, as well as past dates or days with no available slots.
+                        // Only days the availability API returned slots for, and not in the past.
                         const hasSlots = availableDays.has(day);
-                        const isEnabled = !isWeekend && !isPast && hasSlots;
+                        const isEnabled = !isPast && hasSlots;
                         const isSelected = selectedDay === day && isEnabled;
 
                         return (
